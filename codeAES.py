@@ -1,35 +1,53 @@
-import base64
-import hashlib
-from Crypto.Cipher import AES
 from Crypto import Random
- 
-BLOCK_SIZE = 16
-pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
-unpad = lambda s: s[:-ord(s[len(s) - 1:])]
- 
-password = input("Enter encryption password: ")
- 
- 
-def encrypt(raw, password):
-    private_key = hashlib.sha256(password.encode("utf-8")).digest()
-    raw = pad(raw)
-    iv = Random.new().read(AES.block_size)
-    cipher = AES.new(private_key, AES.MODE_CBC, iv)
-    return base64.b64encode(iv + cipher.encrypt(raw))
- 
- 
-def decrypt(enc, password):
-    private_key = hashlib.sha256(password.encode("utf-8")).digest()
-    enc = base64.b64decode(enc)
-    iv = enc[:16]
-    cipher = AES.new(private_key, AES.MODE_CBC, iv)
-    return unpad(cipher.decrypt(enc[16:]))
- 
- 
-# First let us encrypt secret message
-encrypted = encrypt("This is a secret message", password)
-print(encrypted)
- 
-# Let us decrypt using our original password
-decrypted = decrypt(encrypted, password)
-print(bytes.decode(decrypted))
+from Crypto.Cipher import AES
+import os
+import os.path
+from os import listdir
+from os.path import isfile, join
+import time
+
+class Criptografia:
+    def __init__(self, chave):
+        self.chave = chave
+
+    def pad(self, s):
+        return s + b"\0" * (AES.block_size - len(s) % AES.block_size)
+
+    def encripta(self, mensagem,chave, tam_chave=256):
+        mensagem = self.pad(mensagem)
+        iv = Random.new().read(AES.block_size)
+        cifra = AES.new(chave, AES.MODE_CBC, iv)
+        return iv + cifra.encripta(mensagem)
+    
+    def desencripta(self, texto_cifrado, chave):
+        iv = texto_cifrado[:AES.block_size]
+        cifra = AES.new(chave, AES.MODE_CBC, iv)
+        mensagem = cifra.desencripta(texto_cifrado[AES.block_size:])
+        return mensagem.rstrip(b"\0")
+    
+    def encripta_arquivo(self, nome_arquivo):
+        with open(nome_arquivo, 'rb') as arquivo:
+            mensagem = arquivo.read()
+        encrip = self.encripta(mensagem, self.chave)
+        with open(nome_arquivo + ".criptado", 'wb') as arquivo:
+            arquivo.write(encrip)
+        os.remove(nome_arquivo)
+    
+    def desencripta_arquivo(self, nome_arquivo):
+        with open(nome_arquivo, 'rb') as arquivo:
+            texto_cifrado = arquivo.read()
+        desenc = self.desencripta(texto_cifrado, self.chave)
+        with open(nome_arquivo[:-4], 'wb') as arquivo:
+            arquivo.write(desenc)
+        os.remove(nome_arquivo)
+
+opr = input("Favor digite a 1 para Criptografar ou 2 para Desencriptografar:\n")
+chave = input("Favor Insira a Chave:\n")
+if opr == 1:
+    nome_arquivo = input("Insira o nome de Arquivo:\n")
+    encrip = Criptografia(chave)
+    encrip.encripta_arquivo(nome_arquivo)
+elif opr == 2:
+    nome_arquivo = input("Insira o nome de Arquivo:\n")
+    desencrip = Criptografia(chave)
+    desencrip.desencripta_arquivo(nome_arquivo)
